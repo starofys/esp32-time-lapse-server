@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.16)
 project(cpp_projects)
+
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "-D__STDC_CONSTANT_MACROS")
 
 find_package(PkgConfig REQUIRED)
 
@@ -16,8 +18,11 @@ if(FFmpeg_FOUND)
     message(${FFmpeg_LIBRARIES})
     message(${FFmpeg_INCLUDE_DIRS})
     message(${FFmpeg_LIBRARY_DIRS})
+
+    include_directories(${FFmpeg_INCLUDE_DIRS})
 endif()
 
+include_directories(include)
 
-add_subdirectory(libdemo1)
+add_subdirectory(go_ffmpeg)
 add_subdirectory(demo1)
