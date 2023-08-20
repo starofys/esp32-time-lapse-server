@@ -3,7 +3,10 @@
 #include "demo1.h"
 #include "CodecCtx.h"
 #include "FormatCtx.h"
-
+#include <asio2/config.hpp>
+//#undef ASIO2_HEADER_ONLY
+#include <asio2/asio2.hpp>
+#include <asio2/udp/udp_server.hpp>
 
 using namespace std;
 
@@ -30,7 +33,7 @@ private:
     FormatOutput *out;
     VideoOutCodecCtx *outCtx;
 public:
-    SubTitle* subTitle;
+    SubTitle* subTitle = nullptr;
     InCodecCtx *inCtx = nullptr;
     FrameInit(FormatOutput *_out,VideoOutCodecCtx *_codecCtx): out(_out),outCtx(_codecCtx) {};
     int onFrame(CodecCtx *codecCtx,AVFrame* frame) override {
@@ -62,10 +65,31 @@ public:
         return ret;
     }
 };
-class TimeLapseVideo {
+int main ()
+{
+    std::string_view host = "0.0.0.0";
+    std::string_view port = "8080";
 
-};
-int main() {
+    asio2::udp_server server;
+
+    server.bind_recv([](std::shared_ptr<asio2::udp_session> &session_ptr, std::string_view data) {
+        printf("recv %s:%d %zu \n",session_ptr->remote_address().c_str(),session_ptr->remote_port(), data.size());
+
+    }).bind_connect([](auto &session_ptr) {
+        printf("client enter : %s %u %s %u\n",
+               session_ptr->remote_address().c_str(), session_ptr->remote_port(),
+               session_ptr->local_address().c_str(), session_ptr->local_port());
+    });
+    bool s = server.start(host, port);
+
+    if (!s) {
+        printf("errr");
+    }
+
+    while (std::getchar() != '\n');
+}
+
+int main2() {
     const char* outfile = "output.mp4";
     int rate = 25;
     int ret;

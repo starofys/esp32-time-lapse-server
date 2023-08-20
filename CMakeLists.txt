@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(cpp_projects)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-D__STDC_CONSTANT_MACROS")
 
 find_package(PkgConfig REQUIRED)
@@ -26,3 +26,5 @@ include_directories(include)
 
 add_subdirectory(go_ffmpeg)
 add_subdirectory(demo1)
+
+# add_subdirectory(third_partys/asio2)
