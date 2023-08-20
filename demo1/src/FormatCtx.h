@@ -1,25 +1,39 @@
 //
 // Created by micro on 2023/8/12.
 //
-
 #ifndef CPP_PROJECTS_FORMATCTX_H
 #define CPP_PROJECTS_FORMATCTX_H
 
 #include "demo1.h"
 #include "CodecCtx.h"
+#include <vector>
 
 class FormatCtx {
-private:
 public:
-    AVFormatContext *fmt;
-    int is_output;
-    const char* filename;
+    AVFormatContext *fmt = nullptr;
+    // 记录文件输入的pts
+    int pts = 0;
     FormatCtx();
     ~FormatCtx();
-    int newOutput(const char* filename);
-    int open();
-    int newStream(CodecCtx *ctx);
+    int open() const;
+    virtual int initBy(const char *filename);
+    virtual int close();
     void dumpFmt();
+protected:
+    std::vector<CodecCtx*> codecs;
+};
+
+class FormatOutput : public FormatCtx, public PacketSink {
+private:
+public:
+    FormatOutput();
+    ~FormatOutput();
+    int initBy(const char *filename) override;
+    int onPackage(AVPacket* pkg) override;
+    int addStream(CodecCtx *ctx);
+    VideoOutCodecCtx* newVideo(enum AVCodecID codecId,int rate);
+    SubTitle *newSubTitle(AVCodecID id, size_t buffSize);
+    int close() override;
 };
 
 #endif //CPP_PROJECTS_FORMATCTX_H
