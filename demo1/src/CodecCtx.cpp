@@ -272,7 +272,7 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         pix_fmts_supports++;
     } while(*pix_fmts_supports  != AV_PIX_FMT_NONE);
 
-    if (*pix_fmts_supports == AV_PIX_FMT_YUVJ444P) {
+    if (*pix_fmts_supports == AV_PIX_FMT_YUVJ444P || *pix_fmts_supports == AV_PIX_FMT_YUVJ422P) {
         pix_fmts_supports = nullptr;
     }
 
