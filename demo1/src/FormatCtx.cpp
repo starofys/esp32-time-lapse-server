@@ -145,10 +145,13 @@ SubTitle * FormatOutput::newSubTitle(AVCodecID id, size_t buffSize) {
 }
 
 int FormatOutput::close() {
-    int ret = av_write_trailer(fmt);
-    avio_flush(fmt->pb);
-    avio_close(fmt->pb);
-    fmt->pb = nullptr;
+    int ret = 0;
+    if (fmt->pb) {
+        ret = av_write_trailer(fmt);
+        avio_flush(fmt->pb);
+        avio_close(fmt->pb);
+        fmt->pb = nullptr;
+    }
     return ret;
 }
 

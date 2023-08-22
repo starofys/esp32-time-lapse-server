@@ -14,22 +14,23 @@ private:
     FormatOutput *out;
     VideoOutCodecCtx *outCtx;
     int index = 0;
-    AVPacket *pkg;
+    AVPacket pkg = {nullptr};
     AVRational sourceRate;
 public:
     SubTitle* subTitle = nullptr;
     InCodecCtx *inCtx = nullptr;
     FrameInit(FormatOutput *_out,VideoOutCodecCtx *_codecCtx,AVRational _sourceRate):
         out(_out),outCtx(_codecCtx),sourceRate(_sourceRate) {
-        pkg = av_packet_alloc();
     };
     ~FrameInit() {
-        av_packet_free(&pkg);
     }
     void release() {
-        int ret = outCtx->onFrame(inCtx,nullptr);
-        if (ret <0) {
-            CodecCtx::printErr(ret);
+        int ret;
+        if (out->fmt->pb) {
+            ret = outCtx->onFrame(inCtx,nullptr);
+            if (ret <0) {
+                CodecCtx::printErr(ret);
+            }
         }
         ret = out->close();
         if (ret <0) {
@@ -38,17 +39,17 @@ public:
     }
     void onImage(const char *buff, int len) override {
         int ret;
-        ret = av_packet_from_data(pkg,(uint8_t*)buff,len);
+        ret = av_packet_from_data(&pkg,(uint8_t*)buff,len);
         if (ret < 0) {
             cout << "pkg err" <<endl;
         }
 
-        pkg->time_base = sourceRate;
-        pkg->pts = out->pts;
-        pkg->dts = out->pts;
+        pkg.time_base = sourceRate;
+        pkg.pts = out->pts;
+        pkg.dts = out->pts;
         out->pts++;
 
-        ret = inCtx->onPackage(pkg);
+        ret = inCtx->onPackage(&pkg);
         if (ret < 0) {
             cout << "onPackage err" <<endl;
         }
@@ -82,7 +83,6 @@ public:
         return ret;
     }
 };
-FrameInit *fInit = nullptr;
 UdpServer server(1500);
 UdpCodec app(200000);
 void SignalHandler(int signal)
@@ -91,11 +91,6 @@ void SignalHandler(int signal)
     if (signal == SIGINT || signal ==SIGTERM ) {
         server.release();
         app.release();
-        if (fInit) {
-            fInit->release();
-            delete fInit;
-        }
-        fInit = nullptr;
     }
 }
 
@@ -115,7 +110,7 @@ int main ()
     time_t currentTim = time(nullptr);
     strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S.mp4",localtime(&currentTim));
     const char* outfile = filename;
-    int rate = 1;
+    int rate = 25;
 
     AVRational sourceRate =  av_make_q(1,rate);
     InCodecCtx* inCtx = InCodecCtx::findById(AV_CODEC_ID_MJPEG);
@@ -130,7 +125,7 @@ int main ()
     if (ret < 0) {
         return ret;
     }
-    VideoOutCodecCtx *outCtx = outFmt.newVideo(AV_CODEC_ID_HEVC,rate);
+    VideoOutCodecCtx *outCtx = outFmt.newVideo(AV_CODEC_ID_H264,rate);
     auto *frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
     inCtx->setFrameSink(frameInit);
     frameInit->inCtx =  inCtx;
@@ -141,11 +136,12 @@ int main ()
     subTitle->ctx->framerate  = outCtx->ctx->framerate;
 
     frameInit->subTitle = subTitle;
-    fInit = frameInit;
     app.setJpgListener(frameInit);
     server.setListener(&app);
     server.loop();
 
+    frameInit->release();
+    delete frameInit;
 
     return ret;
 

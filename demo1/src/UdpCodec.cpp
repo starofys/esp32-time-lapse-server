@@ -10,18 +10,20 @@ void UdpCodec::onPackage(const char *buff, int len) {
     if (len < 4) {
         return;
     }
+
+    // 4bit cmd 4bit flag 12bit idx 12bit crc16
     int head = *(int*)buff;
-    unsigned short crc16 = head & 0xffff;
+    unsigned short crc16 = head & 0xfff;
     buff=&buff[4];
     len = len - 4;
-    unsigned short cal = CRC16(buff,len);
+    unsigned short cal = CRC16(buff,len) & 0xfff;
     if (cal != crc16) {
         cout << "crc16 error !" <<endl;
         return;
     }
     int cmd = head >> 28;
     int flag = head >> 24 & 0xf;
-    int idx = head >> 16 & 0xff;
+    int idx = head >> 12 & 0xfff;
 
     // cout <<"cmd=" << cmd << " flag= " <<  flag << " len=" <<  len  <<  " idx=" << idx << endl;
 

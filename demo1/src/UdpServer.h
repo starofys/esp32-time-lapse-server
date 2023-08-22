@@ -6,8 +6,12 @@
 #define CPP_PROJECTS_UDPSERVER_H
 
 #ifdef __WINNT
-#include <winsock.h>
+#include <winsock2.h>
 #include <windows.h>
+#else
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #endif
 
 class UdpListener {
@@ -20,10 +24,12 @@ private:
     char *buff;
     const int buffer_size;
     UdpListener* l = nullptr;
-#ifdef __WINNT
     struct sockaddr_in server = {0};
     struct sockaddr_in remote = {0};
-    SOCKET s;
+#ifdef __WINNT
+    SOCKET fd;
+#else
+    int fd;
 #endif
 public:
     UdpServer(int buffer_size);

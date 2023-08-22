@@ -14,7 +14,7 @@ using namespace std;
 
 UdpServer::UdpServer(int buffer_size) :buffer_size(buffer_size) {
     buff = (char*)malloc(buffer_size);
-    s = 0;
+    fd = 0;
 }
 
 int UdpServer::open(unsigned short port) {
@@ -26,28 +26,33 @@ int UdpServer::open(unsigned short port) {
         cout << "Failed. Error Code : " << ret <<endl;
         return ret;
     }
-    s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s == INVALID_SOCKET) {
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd == INVALID_SOCKET) {
         ret = WSAGetLastError();
         cout << "Could not create socket : " <<  ret << endl;
         this->release();
         return ret;
     }
-
+#else
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        this->release();
+        return fd;
+    }
+#endif
     // Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons(port);
-
-    // Bind
-    if (bind(s, (struct sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) {
+    ret = bind(fd, (struct sockaddr*)&server, sizeof(server));
+    if (ret <0) {
+#ifdef __WINNT
         ret = WSAGetLastError();
+#endif
         cout <<"Bind failed with error code : " << ret << endl;
         this->release();
-        return ret;
+    } else {
+        ret = 0;
     }
-    ret = 0;
-#endif
     return ret;
 }
 UdpServer::~UdpServer() {
@@ -57,18 +62,21 @@ UdpServer::~UdpServer() {
 
 void UdpServer::release() {
 #ifdef __WINNT
-    if (s) {
-        closesocket(s);
-        s = 0;
+    if (fd) {
+        closesocket(fd);
+        fd = 0;
     }
     WSACleanup();
+#else
+    close(fd);
 #endif
 }
 void UdpServer::loop() {
     int recv_len;
     int fLen = sizeof(remote);
-    for(;;) {
-        if ((recv_len = recvfrom(s, buff, buffer_size, 0, (struct sockaddr*)&remote, &fLen)) == SOCKET_ERROR) {
+    for(int i=0;i<1000;i++) {
+    // for(;;) {
+        if ((recv_len = recvfrom(fd, buff, buffer_size, 0, (struct sockaddr*)&remote, &fLen)) < 0) {
 //            cout <<"recvfrom failed with error code : " << WSAGetLastError() << endl;
             break;
         }
