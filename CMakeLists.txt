@@ -17,13 +17,13 @@ pkg_check_modules(FFmpeg REQUIRED IMPORTED_TARGET
 if(FFmpeg_FOUND)
     message(${FFmpeg_LIBRARIES})
     message(${FFmpeg_INCLUDE_DIRS})
+if (WIN32)
     message(${FFmpeg_LIBRARY_DIRS})
-
+endif()
     include_directories(${FFmpeg_INCLUDE_DIRS})
 endif()
 
 include_directories(include)
-
 add_subdirectory(go_ffmpeg)
 add_subdirectory(demo1)
 
