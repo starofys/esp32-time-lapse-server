@@ -44,7 +44,7 @@ public:
             cout << "pkg err" <<endl;
         }
 
-        pkg.time_base = sourceRate;
+        //pkg.time_base = sourceRate;
         pkg.pts = out->pts;
         pkg.dts = out->pts;
         out->pts++;
