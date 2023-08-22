@@ -35,4 +35,5 @@ int main2() {
         name += ".jpg";
         pkgList[i] = readAll(name.c_str());
     }
+    return 0;
 }
