@@ -63,14 +63,12 @@ int InCodecCtx::onPackage(AVPacket *inPkt) {
         frame->pict_type = AV_PICTURE_TYPE_NONE;
         if (sink) {
             ret = sink->onFrame(this,frame);
-            if (ret < 0) {
-                CodecCtx::printErr(ret);
-                break;
-            }
         }
         av_frame_unref(frame);
     } while (ret >= 0);
-
+    if (ret < 0) {
+        CodecCtx::printErr(ret);
+    }
     return ret;
 }
 OutCodecCtx* OutCodecCtx::findById(enum AVCodecID id) {
@@ -118,6 +116,7 @@ int OutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             rescale_pkt(pkt,codecCtx->ctx->time_base,stream->time_base);
             ret = sink->onPackage(pkt);
         }
+        av_packet_unref(pkt);
     } while (ret >=0);
     return ret;
 }
@@ -249,13 +248,14 @@ VideoOutCodecCtx::VideoOutCodecCtx(AVCodecContext *_ctx) :sws(nullptr), OutCodec
 int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
     if (sws && frame) {
         av_frame_copy_props(this->_frame,frame);
-
         // int ret = sws_scale_frame(sws, this->_frame,frame);
         int ret = sws_scale(sws,(const uint8_t * const*)frame->data,frame->linesize,0,frame->height,_frame->data,_frame->linesize);
         if (ret < 0) {
             return ret;
         }
-        return OutCodecCtx::onFrame(codecCtx,_frame);
+        ret = OutCodecCtx::onFrame(codecCtx,_frame);
+        av_frame_unref(_frame);
+        return ret;
     } else {
         return OutCodecCtx::onFrame(codecCtx,frame);
     }
