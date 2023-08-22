@@ -5,6 +5,8 @@
 #include "UdpCodec.h"
 #include <iostream>
 #include "crc16.h"
+#include <cstring>
+
 using namespace std;
 void UdpCodec::onPackage(const char *buff, int len) {
     if (len < 4) {
