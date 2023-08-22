@@ -187,7 +187,7 @@ int SubTitle::setSize(size_t _size) {
 }
 
 int SubTitle::encodeTxt(AVPacket* pkgRel,const char* subTile,int64_t duration) {
-    sprintf_s(text_buff, size,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
+    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
     rect.ass = text_buff;
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
     rect.ass = nullptr;
@@ -249,7 +249,9 @@ VideoOutCodecCtx::VideoOutCodecCtx(AVCodecContext *_ctx) :sws(nullptr), OutCodec
 int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
     if (sws && frame) {
         av_frame_copy_props(this->_frame,frame);
-        int ret = sws_scale_frame(sws, this->_frame,frame);
+
+        // int ret = sws_scale_frame(sws, this->_frame,frame);
+        int ret = sws_scale(sws,(const uint8_t * const*)frame->data,frame->linesize,0,frame->height,_frame->data,_frame->linesize);
         if (ret < 0) {
             return ret;
         }

@@ -111,7 +111,7 @@ int main ()
     strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S.mp4",localtime(&currentTim));
     const char* outfile = filename;
     int rate = 25;
-
+    cout << "outfile = " << outfile << endl;
     AVRational sourceRate =  av_make_q(1,rate);
     InCodecCtx* inCtx = InCodecCtx::findById(AV_CODEC_ID_MJPEG);
     inCtx->ctx->time_base = sourceRate;
