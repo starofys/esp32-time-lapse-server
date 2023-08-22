@@ -302,6 +302,10 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
             ret = 0;
         }
         _frame = av_frame_alloc();
+        _frame->format = pix_fmt;
+        _frame->width = ctx->width;
+        _frame->height = ctx->height;
+        ret = av_frame_get_buffer(_frame, 1);
         ctx->pix_fmt = pix_fmt;
     } else {
         ctx->width = frame->width;
