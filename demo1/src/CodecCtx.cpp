@@ -254,7 +254,7 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             return ret;
         }
         ret = OutCodecCtx::onFrame(codecCtx,_frame);
-        av_frame_unref(_frame);
+        //av_frame_unref(_frame);
         return ret;
     } else {
         return OutCodecCtx::onFrame(codecCtx,frame);
