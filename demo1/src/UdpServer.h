@@ -32,7 +32,7 @@ private:
     int fd;
 #endif
 public:
-    UdpServer(int buffer_size);
+    explicit UdpServer(int buffer_size);
     ~UdpServer();
     int open(unsigned short port);
     void release();

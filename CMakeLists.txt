@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(cpp_projects)
+#set (CMAKE_C_COMPILER "gcc.exe")
+#set (CMAKE_CXX_COMPILER "g++.exe")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-D__STDC_CONSTANT_MACROS")
+
+project(cpp_projects C CXX)
 
 find_package(PkgConfig REQUIRED)
 

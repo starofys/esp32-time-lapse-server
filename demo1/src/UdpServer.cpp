@@ -3,11 +3,6 @@
 //
 
 #include "UdpServer.h"
-#ifdef __WINNT
-
-#include <winsock2.h>
-#include <Ws2tcpip.h>
-#endif
 #include <iostream>
 #include "crc16.h"
 using namespace std;
@@ -84,6 +79,7 @@ void UdpServer::loop() {
             l->onPackage(buff,recv_len);
         }
     }
+    cout << "udp break" << endl;
 }
 
 void UdpServer::setListener(UdpListener *_l) {

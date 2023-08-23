@@ -138,6 +138,7 @@ int main ()
     frameInit->subTitle = subTitle;
     app.setJpgListener(frameInit);
     server.setListener(&app);
+
     server.loop();
 
     frameInit->release();

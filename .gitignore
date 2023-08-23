@@ -2,3 +2,10 @@
 .idea/
 bin/
 msvc/
+cmake_install.cmake
+Makefile
+CMakeFiles/
+CMakeCache.txt
+*.ninja*
+Testing/
+.cmake/
