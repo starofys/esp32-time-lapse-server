@@ -239,6 +239,7 @@ VideoOutCodecCtx::~VideoOutCodecCtx() {
         sws = nullptr;
     }
     if (_frame) {
+        av_frame_unref(_frame);
         av_frame_free(&_frame);
     }
 }

@@ -39,7 +39,9 @@ public:
     }
     void onImage(const char *buff, int len) override {
         int ret;
-        ret = av_packet_from_data(&pkg,(uint8_t*)buff,len);
+        auto* data = (uint8_t*)av_malloc(len);
+        memcpy(data,buff,len);
+        ret = av_packet_from_data(&pkg,data,len);
         if (ret < 0) {
             cout << "pkg err" <<endl;
         }
@@ -53,6 +55,7 @@ public:
         if (ret < 0) {
             cout << "onPackage err" <<endl;
         }
+        av_packet_unref(&pkg);
     }
     int onFrame(CodecCtx *codecCtx,AVFrame* frame) override {
         int ret = 0;
@@ -93,18 +96,8 @@ void SignalHandler(int signal)
         app.release();
     }
 }
-
-int main ()
-{
-    signal(SIGINT, SignalHandler);
-    signal(SIGTERM, SignalHandler);
-
-    int ret;
-    ret = server.open(8080);
-    if (ret !=0) {
-        return ret;
-    }
-
+int capture() {
+    int ret = -1;
     char filename[256];
     memset(filename,0,sizeof(filename));
     time_t currentTim = time(nullptr);
@@ -117,16 +110,18 @@ int main ()
     inCtx->ctx->time_base = sourceRate;
     ret = inCtx->open();
     if (ret < 0) {
+        delete inCtx;
         return ret;
     }
 
     FormatOutput outFmt;
     ret = outFmt.initBy(outfile);
     if (ret < 0) {
+        delete inCtx;
         return ret;
     }
     VideoOutCodecCtx *outCtx = outFmt.newVideo(AV_CODEC_ID_H264,rate);
-    auto *frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
+    auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
     inCtx->setFrameSink(frameInit);
     frameInit->inCtx =  inCtx;
     outCtx->setPacketSink(&outFmt);
@@ -140,9 +135,27 @@ int main ()
     server.setListener(&app);
 
     server.loop();
-
+    server.setListener(nullptr);
+    app.setJpgListener(nullptr);
     frameInit->release();
     delete frameInit;
+    delete inCtx;
+    ret = 0;
+    return ret;
+}
+int main ()
+{
+    signal(SIGINT, SignalHandler);
+    signal(SIGTERM, SignalHandler);
+
+    int ret;
+    ret = server.open(8080);
+    if (ret !=0) {
+        return ret;
+    }
+
+    ret = capture();
+
 
     return ret;
 

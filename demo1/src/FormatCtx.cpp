@@ -116,7 +116,7 @@ VideoOutCodecCtx *FormatOutput::newVideo(enum AVCodecID codecId, int rate) {
     AVCodecContext *vCtx = vCodec->ctx;
     vCtx->time_base = av_make_q(1, rate);
     //设置GOP大小，即连续B帧最大数目
-    vCtx->gop_size= 300;
+    vCtx->gop_size= 30;
     vCtx->bit_rate = 800000;
     vCtx->max_b_frames = 16;
 //    vCtx->qcompress = 1.0;
