@@ -281,7 +281,35 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
         return OutCodecCtx::onFrame(codecCtx,frame);
     }
 }
+static int set_hwframe_ctx(AVCodecContext *ctx, AVBufferRef *hw_device_ctx,int width,int height)
+{
+    AVBufferRef *hw_frames_ref;
+    AVHWFramesContext *frames_ctx = NULL;
+    int err = 0;
 
+    if (!(hw_frames_ref = av_hwframe_ctx_alloc(hw_device_ctx))) {
+        fprintf(stderr, "Failed to create VAAPI frame context.\n");
+        return -1;
+    }
+    frames_ctx = (AVHWFramesContext *)(hw_frames_ref->data);
+    frames_ctx->format    = AV_PIX_FMT_VAAPI;
+    frames_ctx->sw_format = AV_PIX_FMT_NV12;
+    frames_ctx->width     = width;
+    frames_ctx->height    = height;
+    frames_ctx->initial_pool_size = 20;
+    if ((err = av_hwframe_ctx_init(hw_frames_ref)) < 0) {
+        fprintf(stderr, "Failed to initialize VAAPI frame context."
+                        "Error code: %s\n",av_err2str(err));
+        av_buffer_unref(&hw_frames_ref);
+        return err;
+    }
+    ctx->hw_frames_ctx = av_buffer_ref(hw_frames_ref);
+    if (!ctx->hw_frames_ctx)
+        err = AVERROR(ENOMEM);
+
+    av_buffer_unref(&hw_frames_ref);
+    return err;
+}
 int VideoOutCodecCtx::initVideo(AVFrame *frame) {
     int ret = -1;
     const enum AVPixelFormat *pix_fmts_supports = ctx->codec->pix_fmts;
@@ -311,16 +339,32 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         if (ctx->height % 2 !=0) {
             ctx->height-=1;
         }
-        sws = sws_getContext(
-                frame->width, frame->height, (enum AVPixelFormat)frame->format,
-                ctx->width, ctx->height, pix_fmt,
-                SWS_FAST_BILINEAR, NULL, NULL, NULL);
+        if (pix_fmt == AV_PIX_FMT_VAAPI) {
+            ret = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI,
+                                         NULL, NULL, 0);
+            if (ret < 0) {
+                CodecCtx::printErr(ret);
+                cout <<"Failed to create a VAAPI device" << endl;
+            } else {
+                if ((ret = set_hwframe_ctx(ctx, hw_device_ctx,ctx->width,ctx->height)) < 0) {
+                    cout <<"Failed to set hwframe context" << endl;
+                } else {
+                    cout <<"set_hwframe_ctx success !" << endl;
+                }
+            }
 
-        if (sws == nullptr) {
-            cout << "sws_getContext fail" << endl;
-            ret = -1;
         } else {
-            ret = 0;
+            sws = sws_getContext(
+                    frame->width, frame->height, (enum AVPixelFormat)frame->format,
+                    ctx->width, ctx->height, pix_fmt,
+                    SWS_FAST_BILINEAR, NULL, NULL, NULL);
+
+            if (sws == nullptr) {
+                cout << "sws_getContext fail" << endl;
+                ret = -1;
+            } else {
+                ret = 0;
+            }
         }
         _frame = av_frame_alloc();
         _frame->format = pix_fmt;
