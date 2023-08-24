@@ -298,8 +298,9 @@ static int set_hwframe_ctx(AVCodecContext *ctx, AVBufferRef *hw_device_ctx,int w
     frames_ctx->height    = height;
     frames_ctx->initial_pool_size = 20;
     if ((err = av_hwframe_ctx_init(hw_frames_ref)) < 0) {
-        fprintf(stderr, "Failed to initialize VAAPI frame context."
-                        "Error code: %s\n",av_err2str(err));
+        CodecCtx::printErr(err);
+        cout << "Failed to initialize VAAPI frame context."
+                        "Error code: " << err << endl;
         av_buffer_unref(&hw_frames_ref);
         return err;
     }
