@@ -334,6 +334,9 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         ctx->pix_fmt = *pix_fmts_supports;
     }
 
+    const AVPixFmtDescriptor * desc = av_pix_fmt_desc_get(ctx->pix_fmt);
+    cout << "pix_fmt = " << desc->name << endl;
+
     return ret;
 }
 
