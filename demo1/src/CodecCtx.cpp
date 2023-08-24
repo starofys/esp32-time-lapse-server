@@ -38,7 +38,18 @@ AVCodecContext* CodecCtx::findById(enum AVCodecID id, bool encoder) {
         return avcodec_alloc_context3(codec);
     }
     return nullptr;
-
+}
+AVCodecContext* CodecCtx::findByName(const char* name, bool encoder) {
+    const AVCodec *codec;
+    if (encoder) {
+        codec = avcodec_find_encoder_by_name(name);
+    } else {
+        codec = avcodec_find_encoder_by_name(name);
+    }
+    if (codec) {
+        return avcodec_alloc_context3(codec);
+    }
+    return nullptr;
 }
 InCodecCtx* InCodecCtx::findById(enum AVCodecID id) {
     auto ctx = CodecCtx::findById(id, false);
@@ -85,6 +96,14 @@ VideoOutCodecCtx* VideoOutCodecCtx::findById(enum AVCodecID id) {
     }
     return nullptr;
 }
+VideoOutCodecCtx *VideoOutCodecCtx::findByName(const char *name) {
+    auto ctx = CodecCtx::findByName(name, true);
+    if (ctx != nullptr) {
+        return new VideoOutCodecCtx(ctx);
+    }
+    return nullptr;
+}
+
 OutCodecCtx::OutCodecCtx(AVCodecContext *ctx) : CodecCtx(ctx) {
     pkt = av_packet_alloc();
 }
@@ -185,7 +204,7 @@ int SubTitle::setSize(size_t _size) {
     return 0;
 }
 
-int SubTitle::encodeTxt(AVPacket* pkgRel,const char* subTile,int64_t duration) {
+int SubTitle::encodeTxt(int64_t pts,const char* subTile,int64_t duration) {
     sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
     rect.ass = text_buff;
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
@@ -200,11 +219,12 @@ int SubTitle::encodeTxt(AVPacket* pkgRel,const char* subTile,int64_t duration) {
     pkt->size = len;
     pkt->data = (uint8_t*)subtitle_out;
     pkt->duration = duration;
-    pkt->pts = pkgRel->pts;
-    pkt->dts = pkgRel->dts;
+    pkt->pts = pts;
+    pkt->dts = pts;
     rescale_pkt(pkt,ctx->time_base,stream->time_base);
     if (sink != nullptr) {
         sink->onPackage(pkt);
+        av_packet_unref(pkt);
     }
     return 0;
 }
@@ -281,7 +301,7 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
 
     // 需要转码
     if (pix_fmts_supports == nullptr || *pix_fmts_supports == AV_PIX_FMT_NONE) {
-        enum AVPixelFormat pix_fmt = AV_PIX_FMT_YUV420P;
+        enum AVPixelFormat pix_fmt = ctx->codec->pix_fmts[0];
         ctx->width = frame->width;
         ctx->height = frame->height;
 
@@ -316,3 +336,22 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
 
     return ret;
 }
+
+int VideoOutCodecCtx::initDefault(int rate) {
+    ctx->time_base = av_make_q(1, rate);
+    //设置GOP大小，即连续B帧最大数目
+    ctx->gop_size= 30;
+    ctx->bit_rate = 800000;
+    ctx->max_b_frames = 16;
+//    ctx->qcompress = 1.0;
+    ctx->framerate = av_inv_q(ctx->time_base);
+
+    if(ctx->codec->id == AV_CODEC_ID_H264) {
+        av_opt_set(ctx->priv_data, "preset", "slow", 0);
+    }
+    //设置量化系数
+    ctx->qmin=10;
+    ctx->qmax=51;
+    return 0;
+}
+

@@ -8,14 +8,14 @@
 #include "UdpCodec.h"
 
 using namespace std;
-
+char filename[256];
 class FrameInit : public FrameSink ,public JpgListener {
 private:
     FormatOutput *out;
     VideoOutCodecCtx *outCtx;
-    int index = 0;
     AVPacket pkg = {nullptr};
     AVRational sourceRate;
+    int last_pts = 0;
 public:
     SubTitle* subTitle = nullptr;
     InCodecCtx *inCtx = nullptr;
@@ -44,6 +44,8 @@ public:
         ret = av_packet_from_data(&pkg,data,len);
         if (ret < 0) {
             cout << "pkg err" <<endl;
+            av_free(data);
+            return;
         }
 
         //pkg.time_base = sourceRate;
@@ -53,7 +55,7 @@ public:
 
         ret = inCtx->onPackage(&pkg);
         if (ret < 0) {
-            cout << "onPackage err" <<endl;
+            cout << "encode pkg err" <<endl;
         }
         av_packet_unref(&pkg);
     }
@@ -65,23 +67,31 @@ public:
                 return ret;
             }
             ret = out->addStream(outCtx);
-            if (ret >=0) {
+            if (ret >=0 && outCtx->ctx->codec_id == AV_CODEC_ID_H264 || outCtx->ctx->codec_id == AV_CODEC_ID_HEVC) {
                 ret = out->addStream(subTitle);
                 if (ret <0 ) {
                     return ret;
                 }
+                subTitle->setPacketSink(out);
+            } else {
+                exit(ret);
+                return ret;
             }
-            if (ret >= 0) {
-                ret = out->open();
-            }
-            if (ret >=0) {
-                if (inCtx) {
-                    inCtx->setFrameSink(outCtx);
-                }
+            ret = out->open();
+            if (ret < 0) {
+                CodecCtx::printErr(ret);
+                exit(ret);
+                return ret;
             }
         }
-        if (ret >=0) {
-            ret = outCtx->onFrame(codecCtx,frame);
+        int64_t pts = frame->pts;
+        ret = outCtx->onFrame(codecCtx,frame);
+        int duration = sourceRate.den *5;
+
+        if (ret >=0 && pts % duration == 0) {
+            time_t currentTim = time(nullptr);
+            strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S",localtime(&currentTim));
+            // subTitle->encodeTxt(pts,filename,duration);
         }
         return ret;
     }
@@ -96,15 +106,14 @@ void SignalHandler(int signal)
         app.release();
     }
 }
-int capture() {
+int capture(const char *encoder, int rate) {
     int ret = -1;
-    char filename[256];
     memset(filename,0,sizeof(filename));
     time_t currentTim = time(nullptr);
     strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S.mp4",localtime(&currentTim));
     const char* outfile = filename;
-    int rate = 25;
-    cout << "outfile = " << outfile << endl;
+
+    cout << "encoder = " << encoder << " outfile = " << outfile << endl;
     AVRational sourceRate =  av_make_q(1,rate);
     InCodecCtx* inCtx = InCodecCtx::findById(AV_CODEC_ID_MJPEG);
     inCtx->ctx->time_base = sourceRate;
@@ -120,15 +129,16 @@ int capture() {
         delete inCtx;
         return ret;
     }
-    VideoOutCodecCtx *outCtx = outFmt.newVideo(AV_CODEC_ID_H264,rate);
+    VideoOutCodecCtx *outCtx = VideoOutCodecCtx::findByName(encoder);
+    outCtx->initDefault(sourceRate.den);
+    SubTitle *subTitle = SubTitle::findById(AV_CODEC_ID_MOV_TEXT, true,512);
+    subTitle->ctx->time_base = outCtx->ctx->time_base;
+    subTitle->ctx->framerate  = outCtx->ctx->framerate;
+
     auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
     inCtx->setFrameSink(frameInit);
     frameInit->inCtx =  inCtx;
     outCtx->setPacketSink(&outFmt);
-
-    SubTitle *subTitle = outFmt.newSubTitle(AV_CODEC_ID_MOV_TEXT, 512);
-    subTitle->ctx->time_base = outCtx->ctx->time_base;
-    subTitle->ctx->framerate  = outCtx->ctx->framerate;
 
     frameInit->subTitle = subTitle;
     app.setJpgListener(frameInit);
@@ -140,21 +150,30 @@ int capture() {
     frameInit->release();
     delete frameInit;
     delete inCtx;
+    delete outCtx;
+    delete subTitle;
     ret = 0;
     return ret;
 }
-int main ()
+int main (int argc,char*argv[])
 {
     signal(SIGINT, SignalHandler);
     signal(SIGTERM, SignalHandler);
-
+    int rate = 25;
+    const char* encoder = "libx264";
+    if (argc > 1) {
+        encoder = argv[1];
+    }
+    if (argc > 2) {
+        rate = std::atoi(argv[2]);
+    }
     int ret;
     ret = server.open(8080);
     if (ret !=0) {
         return ret;
     }
 
-    ret = capture();
+    ret = capture(encoder, rate);
 
 
     return ret;

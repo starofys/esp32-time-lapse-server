@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(go_ffmpeg)
 set(CMAKE_CXX_STANDARD 17)
 
-message(${FFmpeg_LIBRARY_DIRS})
+# message(${FFmpeg_LIBRARY_DIRS})
 
 include_directories(../include)
 aux_source_directory(./src SRC)

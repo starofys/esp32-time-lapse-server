@@ -70,8 +70,8 @@ void UdpServer::release() {
 void UdpServer::loop() {
     int recv_len;
     socklen_t fLen = sizeof(remote);
-    for(int i=0;i<1000;i++) {
-//     for(;;) {
+//    for(int i=0;i<1000;i++) {
+     for(;;) {
         if ((recv_len = recvfrom(fd, buff, buffer_size, 0, (struct sockaddr*)&remote, &fLen)) < 0) {
 //            cout <<"recvfrom failed with error code : " << WSAGetLastError() << endl;
             break;

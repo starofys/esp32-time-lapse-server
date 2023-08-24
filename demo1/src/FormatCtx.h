@@ -31,8 +31,6 @@ public:
     int initBy(const char *filename) override;
     int onPackage(AVPacket* pkg) override;
     int addStream(CodecCtx *ctx);
-    VideoOutCodecCtx* newVideo(enum AVCodecID codecId,int rate);
-    SubTitle *newSubTitle(AVCodecID id, size_t buffSize);
     int close() override;
 };
 

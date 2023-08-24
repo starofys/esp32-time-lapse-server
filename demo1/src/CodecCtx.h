@@ -11,6 +11,7 @@ class CodecCtx {
 public:
     static void printErr(int ret);
     static AVCodecContext* findById(enum AVCodecID id,bool encoder);
+    static AVCodecContext* findByName(const char* name,bool encoder);
     AVCodecContext *ctx;
     AVStream *stream;
     explicit CodecCtx(AVCodecContext *_ctx);
@@ -45,8 +46,10 @@ private:
     AVFrame *_frame = nullptr;
 public:
     static VideoOutCodecCtx* findById(enum AVCodecID id);
+    static VideoOutCodecCtx* findByName(const char* name);
     VideoOutCodecCtx(AVCodecContext *_ctx);
     ~VideoOutCodecCtx();
+    int initDefault(int rate);
     int initVideo(AVFrame *frame);
     int onFrame(CodecCtx *codecCtx,AVFrame *frame) override;
 };
@@ -74,7 +77,7 @@ public:
     ~SubTitle();
     int setSize(size_t size);
     int open() const override;
-    int encodeTxt(AVPacket* pkgRel,const char* subTile,int64_t duration);
+    int encodeTxt(int64_t pts,const char* subTile,int64_t duration);
 private:
     char *subtitle_out;
     size_t size = 0 ;

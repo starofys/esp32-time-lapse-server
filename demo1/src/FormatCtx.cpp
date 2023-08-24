@@ -13,9 +13,9 @@ FormatCtx::~FormatCtx() {
         }
         avformat_free_context(fmt);
     }
-    for (CodecCtx *item: codecs) {
-        delete item;
-    }
+//    for (CodecCtx *item: codecs) {
+//        delete item;
+//    }
     codecs.clear();
 }
 
@@ -66,6 +66,9 @@ int FormatCtx::close() {
 }
 
 int FormatOutput::onPackage(AVPacket *pkg) {
+    if (!fmt->pb) {
+        return 0;
+    }
     int ret = av_interleaved_write_frame(fmt,pkg);
     if (ret < 0) {
         CodecCtx::printErr(ret);
@@ -108,41 +111,8 @@ int FormatOutput::addStream(CodecCtx *ctx) {
     return ret;
 }
 
-VideoOutCodecCtx *FormatOutput::newVideo(enum AVCodecID codecId, int rate) {
-    VideoOutCodecCtx *vCodec = VideoOutCodecCtx::findById(codecId);
-    if (vCodec == nullptr) {
-        return nullptr;
-    }
-    AVCodecContext *vCtx = vCodec->ctx;
-    vCtx->time_base = av_make_q(1, rate);
-    //设置GOP大小，即连续B帧最大数目
-    vCtx->gop_size= 30;
-    vCtx->bit_rate = 800000;
-    vCtx->max_b_frames = 16;
-//    vCtx->qcompress = 1.0;
-    vCtx->framerate = av_inv_q(vCtx->time_base);
-
-    if(vCtx->codec->id == AV_CODEC_ID_H264) {
-        av_opt_set(vCtx->priv_data, "preset", "slow", 0);
-    }
-    //设置量化系数
-    vCtx->qmin=10;
-    vCtx->qmax=51;
-
-    codecs.push_back(vCodec);
-    return vCodec;
-}
 
 FormatOutput::~FormatOutput() = default;
-
-
-SubTitle * FormatOutput::newSubTitle(AVCodecID id, size_t buffSize) {
-    SubTitle *codec = SubTitle::findById(id, true,buffSize);
-    if (codec) {
-        codecs.push_back(codec);
-    }
-    return codec;
-}
 
 int FormatOutput::close() {
     int ret = 0;
