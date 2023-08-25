@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="//unpkg.byted-static.com/xgplayer/3.0.8/dist/index.min.css">
+    <script src="//unpkg.byted-static.com/xgplayer/3.0.8/dist/index.min.js"></script>
+    <script src="//unpkg.byted-static.com/xgplayer-flv/3.0.1/dist/index.min.js" charset="utf-8"></script>
+    <style>
+        #mse {
+            width: 800px;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+<div id="mse"></div>
+<input id="url" />
+<button id="play">播放</button>
+<script>
+    var player = new window.Player({
+        id: 'mse',
+        isLive: false,
+        autoplay: false,
+        playsinline: true,
+        height: '800',
+        width: '600',
+        plugins: [window.FlvPlayer]
+    })
+    var $$=function (id) {
+        return document.getElementById(id);
+    }
+    $$('play').addEventListener('click', function () {
+        player.playNext({
+            url: $$('url').value,
+        })
+    })
+
+</script>
+</body>
+</html>

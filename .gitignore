@@ -9,3 +9,4 @@ CMakeCache.txt
 *.ninja*
 Testing/
 .cmake/
+*.flv
