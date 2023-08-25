@@ -135,21 +135,18 @@ int capture(const char *encoder,const char* extFile, int rate) {
     VideoOutCodecCtx *outCtx = VideoOutCodecCtx::findByName(encoder);
     outCtx->initDefault(sourceRate.den);
 
-
-
     auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
     inCtx->setFrameSink(frameInit);
     frameInit->inCtx =  inCtx;
     outCtx->setPacketSink(&outFmt);
-
-    if (outFmt.fmt->oformat->video_codec != AV_CODEC_ID_FLV1) {
-        SubTitle *subTitle = SubTitle::findById(AV_CODEC_ID_MOV_TEXT, true,512);
-        subTitle->ctx->time_base = outCtx->ctx->time_base;
-        subTitle->ctx->framerate  = outCtx->ctx->framerate;
-        frameInit->subTitle = subTitle;
-    } else {
-        frameInit->subTitle = nullptr;
+    enum AVCodecID subTitleCodec = AV_CODEC_ID_MOV_TEXT;
+    if (outFmt.fmt->oformat->video_codec == AV_CODEC_ID_FLV1) {
+        subTitleCodec = AV_CODEC_ID_TEXT;
     }
+    SubTitle *subTitle = SubTitle::findById(subTitleCodec, true,512);
+    subTitle->ctx->time_base = outCtx->ctx->time_base;
+    subTitle->ctx->framerate  = outCtx->ctx->framerate;
+    frameInit->subTitle = subTitle;
 
     app.setJpgListener(frameInit);
     server.setListener(&app);
