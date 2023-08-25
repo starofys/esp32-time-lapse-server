@@ -109,13 +109,8 @@ OutCodecCtx::OutCodecCtx(AVCodecContext *ctx) : CodecCtx(ctx) {
 }
 void rescale_pkt(AVPacket *pkt, AVRational tb_src, AVRational tb_dst)
 {
-    cout << "pts = " << pkt->pts
-         << " dts = " << pkt->dts
-         << " outPkgLen = " << pkt->size << endl;
-
-    av_packet_rescale_ts(pkt,
-                         tb_src,
-                         tb_dst);
+    cout << "in pts = " << pkt->pts  << " dts = " << pkt->dts << " outPkgLen = " << pkt->size << endl;
+    av_packet_rescale_ts(pkt, tb_src,  tb_dst);
 }
 int OutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
     if (frame) {
@@ -164,7 +159,7 @@ int SubTitle::open() const {
     if (ctx->subtitle_header == nullptr) {
         const char* header = av_asprintf("");
         ctx->subtitle_header  = (uint8_t*) header;
-        ctx->subtitle_header_size = 0;
+        ctx->subtitle_header_size = strlen(header);
     }
     return CodecCtx::open();
 }
@@ -172,6 +167,7 @@ int SubTitle::open() const {
 SubTitle::~SubTitle() {
     if (av_codec_is_encoder(ctx->codec)) {
         av_free(ctx->subtitle_header);
+        ctx->subtitle_header = nullptr;
     }
     if (subtitle_out) {
         av_free(subtitle_out);
@@ -191,7 +187,6 @@ int SubTitle::setSize(size_t _size) {
     if (text_buff) {
         av_free(text_buff);
     }
-//    int subtitle_out_max_size = 1024 * 2;
     subtitle_out = (char *)av_malloc(_size);
     if (subtitle_out) {
         subtitle_out[0] = 0;
@@ -204,7 +199,7 @@ int SubTitle::setSize(size_t _size) {
     return 0;
 }
 
-int SubTitle::encodeTxt(int64_t pts,const char* subTile,int64_t duration) {
+int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
     sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
     rect.ass = text_buff;
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
@@ -216,16 +211,18 @@ int SubTitle::encodeTxt(int64_t pts,const char* subTile,int64_t duration) {
         CodecCtx::printErr(len);
         return len;
     }
+    pkt->stream_index = stream->index;
     pkt->size = len;
     pkt->data = (uint8_t*)subtitle_out;
-    pkt->duration = duration;
-    pkt->pts = pts;
-    pkt->dts = pts;
-    rescale_pkt(pkt,ctx->time_base,stream->time_base);
-    if (sink != nullptr) {
+
+    pkt->pts = frame->pts;
+    pkt->dts = frame->pkt_dts;
+    pkt->duration = frame->duration;
+    av_packet_rescale_ts( pkt, ctx->time_base,  stream->time_base);
+    if (sink) {
         sink->onPackage(pkt);
-        av_packet_unref(pkt);
     }
+    av_packet_unref(pkt);
     return 0;
 }
 

@@ -65,11 +65,13 @@ int FormatCtx::close() {
     return 0;
 }
 
-int FormatOutput::onPackage(AVPacket *pkg) {
+int FormatOutput::onPackage(AVPacket *pkt) {
     if (!fmt->pb) {
         return 0;
     }
-    int ret = av_interleaved_write_frame(fmt,pkg);
+    last_dts = pkt->dts;
+    cout << "out = " << pkt->pts  << " dts = " << pkt->dts << " outPkgLen = " << pkt->size << endl;
+    int ret = av_interleaved_write_frame(fmt,pkt);
     if (ret < 0) {
         CodecCtx::printErr(ret);
         return ret;

@@ -9,13 +9,12 @@
 
 using namespace std;
 char filename[256];
-class FrameInit : public FrameSink ,public JpgListener {
+class FrameInit : public FrameSink ,public PacketSink,public JpgListener {
 private:
     FormatOutput *out;
     VideoOutCodecCtx *outCtx;
     AVPacket pkg = {nullptr};
     AVRational sourceRate;
-    int last_pts = 0;
 public:
     SubTitle* subTitle = nullptr;
     InCodecCtx *inCtx = nullptr;
@@ -67,15 +66,16 @@ public:
                 return ret;
             }
             ret = out->addStream(outCtx);
-            if (ret >=0 && outCtx->ctx->codec_id == AV_CODEC_ID_H264 || outCtx->ctx->codec_id == AV_CODEC_ID_HEVC) {
+            if (ret < 0) {
+                exit(ret);
+                return ret;
+            }
+            if (subTitle) {
                 ret = out->addStream(subTitle);
                 if (ret <0 ) {
                     return ret;
                 }
                 subTitle->setPacketSink(out);
-            } else {
-                exit(ret);
-                return ret;
             }
             ret = out->open();
             if (ret < 0) {
@@ -84,16 +84,19 @@ public:
                 return ret;
             }
         }
-        int64_t pts = frame->pts;
-        ret = outCtx->onFrame(codecCtx,frame);
-        int duration = sourceRate.den *5;
-
-        if (ret >=0 && pts % duration == 0) {
+        int duration = sourceRate.den;
+        if (subTitle && frame->pts % duration == 0) {
             time_t currentTim = time(nullptr);
-            strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S",localtime(&currentTim));
-            // subTitle->encodeTxt(pts,filename,duration);
+            strftime(filename, sizeof(filename), "%Y-%m-%d %H:%M:%S",localtime(&currentTim));
+            subTitle->encodeTxt(frame,filename);
         }
+
+        ret = outCtx->onFrame(codecCtx,frame);
+
         return ret;
+    }
+    int onPackage(AVPacket* _pkg) override {
+        return 0;
     }
 };
 UdpServer server(1500);
@@ -106,13 +109,13 @@ void SignalHandler(int signal)
         app.release();
     }
 }
-int capture(const char *encoder, int rate) {
+int capture(const char *encoder,const char* extFile, int rate) {
     int ret = -1;
     memset(filename,0,sizeof(filename));
     time_t currentTim = time(nullptr);
-    strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S.mp4",localtime(&currentTim));
+    strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S",localtime(&currentTim));
+    sprintf(filename,"%s.%s",filename,extFile);
     const char* outfile = filename;
-
     cout << "encoder = " << encoder << " outfile = " << outfile << endl;
     AVRational sourceRate =  av_make_q(1,rate);
     InCodecCtx* inCtx = InCodecCtx::findById(AV_CODEC_ID_MJPEG);
@@ -131,16 +134,23 @@ int capture(const char *encoder, int rate) {
     }
     VideoOutCodecCtx *outCtx = VideoOutCodecCtx::findByName(encoder);
     outCtx->initDefault(sourceRate.den);
-    SubTitle *subTitle = SubTitle::findById(AV_CODEC_ID_MOV_TEXT, true,512);
-    subTitle->ctx->time_base = outCtx->ctx->time_base;
-    subTitle->ctx->framerate  = outCtx->ctx->framerate;
+
+
 
     auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
     inCtx->setFrameSink(frameInit);
     frameInit->inCtx =  inCtx;
     outCtx->setPacketSink(&outFmt);
 
-    frameInit->subTitle = subTitle;
+    if (outFmt.fmt->oformat->video_codec != AV_CODEC_ID_FLV1) {
+        SubTitle *subTitle = SubTitle::findById(AV_CODEC_ID_MOV_TEXT, true,512);
+        subTitle->ctx->time_base = outCtx->ctx->time_base;
+        subTitle->ctx->framerate  = outCtx->ctx->framerate;
+        frameInit->subTitle = subTitle;
+    } else {
+        frameInit->subTitle = nullptr;
+    }
+
     app.setJpgListener(frameInit);
     server.setListener(&app);
 
@@ -148,10 +158,12 @@ int capture(const char *encoder, int rate) {
     server.setListener(nullptr);
     app.setJpgListener(nullptr);
     frameInit->release();
+    if (frameInit->subTitle) {
+        delete frameInit->subTitle;
+    }
     delete frameInit;
     delete inCtx;
     delete outCtx;
-    delete subTitle;
     ret = 0;
     return ret;
 }
@@ -161,11 +173,15 @@ int main (int argc,char*argv[])
     signal(SIGTERM, SignalHandler);
     int rate = 25;
     const char* encoder = "libx264";
+    const char* extFile = "mp4";
     if (argc > 1) {
         encoder = argv[1];
     }
     if (argc > 2) {
         rate = std::atoi(argv[2]);
+    }
+    if (argc > 3) {
+        extFile = argv[3];
     }
     int ret;
     ret = server.open(8080);
@@ -173,7 +189,7 @@ int main (int argc,char*argv[])
         return ret;
     }
 
-    ret = capture(encoder, rate);
+    ret = capture(encoder, extFile,rate);
 
 
     return ret;

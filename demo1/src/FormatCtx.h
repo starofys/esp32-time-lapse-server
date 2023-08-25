@@ -26,6 +26,7 @@ protected:
 class FormatOutput : public FormatCtx, public PacketSink {
 private:
 public:
+    int64_t last_dts = -4000;
     FormatOutput();
     ~FormatOutput();
     int initBy(const char *filename) override;

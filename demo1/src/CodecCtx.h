@@ -78,7 +78,7 @@ public:
     ~SubTitle();
     int setSize(size_t size);
     int open() const override;
-    int encodeTxt(int64_t pts,const char* subTile,int64_t duration);
+    int encodeTxt(AVFrame* frame,const char* subTile);
 private:
     char *subtitle_out;
     size_t size = 0 ;
