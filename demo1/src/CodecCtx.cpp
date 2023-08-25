@@ -217,7 +217,11 @@ int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
 
     pkt->pts = frame->pts;
     pkt->dts = frame->pkt_dts;
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
     pkt->duration = frame->duration;
+#else
+    pkt->duration = frame->pkt_duration;
+#endif
     av_packet_rescale_ts( pkt, ctx->time_base,  stream->time_base);
     if (sink) {
         sink->onPackage(pkt);
