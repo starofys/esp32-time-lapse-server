@@ -133,6 +133,10 @@ int capture(const char *encoder,const char* extFile, int rate) {
         return ret;
     }
     VideoOutCodecCtx *outCtx = VideoOutCodecCtx::findByName(encoder);
+    if (outCtx == nullptr) {
+        ret = -1;
+        return ret;
+    }
     outCtx->initDefault(sourceRate.den);
 
     auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);

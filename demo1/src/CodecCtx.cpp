@@ -263,6 +263,13 @@ VideoOutCodecCtx::~VideoOutCodecCtx() {
         av_frame_unref(_frame);
         av_frame_free(&_frame);
     }
+    if (hw_frame) {
+        av_frame_unref(hw_frame);
+        av_frame_free(&hw_frame);
+    }
+    if (hw_device_ctx) {
+        av_buffer_unref(&hw_device_ctx);
+    }
 }
 VideoOutCodecCtx::VideoOutCodecCtx(AVCodecContext *_ctx) :sws(nullptr), OutCodecCtx(_ctx) {
 
@@ -275,7 +282,16 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
         if (ret < 0) {
             return ret;
         }
-        ret = OutCodecCtx::onFrame(codecCtx,_frame);
+
+        if (hw_frame) {
+            ret = av_hwframe_transfer_data(hw_frame, _frame, 0);
+            if (ret < 0) {
+                return ret;
+            }
+            ret = OutCodecCtx::onFrame(codecCtx,hw_frame);
+        } else {
+            ret = OutCodecCtx::onFrame(codecCtx,_frame);
+        }
         //av_frame_unref(_frame);
         return ret;
     } else {
@@ -325,6 +341,7 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         pix_fmts_supports++;
     } while(*pix_fmts_supports  != AV_PIX_FMT_NONE);
 
+    // jpeg需要转yuv420
     if (*pix_fmts_supports == AV_PIX_FMT_YUVJ444P || *pix_fmts_supports == AV_PIX_FMT_YUVJ422P) {
         pix_fmts_supports = nullptr;
     }
@@ -344,30 +361,34 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         if (pix_fmt == AV_PIX_FMT_VAAPI) {
             ret = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI,
                                          NULL, NULL, 0);
-            if (ret < 0) {
+            if (ret >= 0) {
+                ret = set_hwframe_ctx(ctx, hw_device_ctx,ctx->width,ctx->height);
                 CodecCtx::printErr(ret);
                 cout <<"Failed to create a VAAPI device" << endl;
-            } else {
-                if ((ret = set_hwframe_ctx(ctx, hw_device_ctx,ctx->width,ctx->height)) < 0) {
-                    cout <<"Failed to set hwframe context" << endl;
-                } else {
-                    cout <<"set_hwframe_ctx success !" << endl;
-                }
             }
-
-        } else {
-            sws = sws_getContext(
-                    frame->width, frame->height, (enum AVPixelFormat)frame->format,
-                    ctx->width, ctx->height, pix_fmt,
-                    SWS_FAST_BILINEAR, NULL, NULL, NULL);
-
-            if (sws == nullptr) {
-                cout << "sws_getContext fail" << endl;
-                ret = -1;
+            if (ret >=0) {
+                cout <<"set_hwframe_ctx success !" << endl;
             } else {
-                ret = 0;
+                if (hw_device_ctx) {
+                    av_buffer_unref(&hw_device_ctx);
+                }
+                hw_device_ctx = nullptr;
+                cout <<"Failed to set hwframe context" << endl;
+                return ret;
             }
         }
+        sws = sws_getContext(
+                frame->width, frame->height, (enum AVPixelFormat)frame->format,
+                ctx->width, ctx->height, pix_fmt == AV_PIX_FMT_VAAPI ? AV_PIX_FMT_NV12:pix_fmt,
+                SWS_FAST_BILINEAR, NULL, NULL, NULL);
+
+        if (sws == nullptr) {
+            cout << "sws_getContext fail" << endl;
+            ret = -1;
+        } else {
+            ret = 0;
+        }
+
         _frame = av_frame_alloc();
         _frame->format = pix_fmt;
         _frame->width = ctx->width;
