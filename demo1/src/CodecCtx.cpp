@@ -77,9 +77,6 @@ int InCodecCtx::onPackage(AVPacket *inPkt) {
         }
         av_frame_unref(frame);
     } while (ret >= 0);
-    if (ret < 0) {
-        CodecCtx::printErr(ret,"encode err ");
-    }
     return ret;
 }
 OutCodecCtx* OutCodecCtx::findById(enum AVCodecID id) {
@@ -259,14 +256,6 @@ VideoOutCodecCtx::~VideoOutCodecCtx() {
         sws_freeContext(sws);
         sws = nullptr;
     }
-    if (_frame) {
-        av_frame_unref(_frame);
-        av_frame_free(&_frame);
-    }
-    if (hw_frame) {
-        av_frame_unref(hw_frame);
-        av_frame_free(&hw_frame);
-    }
     if (hw_device_ctx) {
         av_buffer_unref(&hw_device_ctx);
     }
@@ -276,23 +265,48 @@ VideoOutCodecCtx::VideoOutCodecCtx(AVCodecContext *_ctx) :sws(nullptr), OutCodec
 }
 int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
     if (sws && frame) {
-        av_frame_copy_props(this->_frame,frame);
-        // int ret = sws_scale_frame(sws, this->_frame,frame);
-        int ret = sws_scale(sws,(const uint8_t * const*)frame->data,frame->linesize,0,frame->height,_frame->data,_frame->linesize);
+        AVFrame *sw_frame = av_frame_alloc();
+        if (ctx->hw_frames_ctx) {
+            auto* hw_ctx = (AVHWFramesContext *)(ctx->hw_frames_ctx->data);
+            sw_frame->format = hw_ctx->sw_format;
+        } else {
+            sw_frame->format = ctx->pix_fmt;
+        }
+        sw_frame->width = ctx->width;
+        sw_frame->height = ctx->height;
+        int ret = av_frame_get_buffer(sw_frame, 1);
         if (ret < 0) {
+            CodecCtx::printErr(ret," get buffer err");
             return ret;
         }
-
-        if (hw_frame) {
-            ret = av_hwframe_transfer_data(hw_frame, _frame, 0);
-            if (ret < 0) {
-                return ret;
-            }
-            ret = OutCodecCtx::onFrame(codecCtx,hw_frame);
-        } else {
-            ret = OutCodecCtx::onFrame(codecCtx,_frame);
+        av_frame_copy_props(sw_frame,frame);
+        // int ret = sws_scale_frame(sws, this->_frame,frame);
+        ret = sws_scale(sws,
+                        (const uint8_t * const*)frame->data,
+                        frame->linesize,0,frame->height,sw_frame->data,sw_frame->linesize);
+        if (ret < 0) {
+            CodecCtx::printErr(ret," sws_scale err");
+            av_frame_free(&sw_frame);
+            return ret;
         }
-        //av_frame_unref(_frame);
+        if (ctx->hw_frames_ctx) {
+            AVFrame * hw_frame = av_frame_alloc();
+            ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, hw_frame, 0);
+            if (ret >= 0) {
+                ret = av_hwframe_transfer_data(hw_frame, sw_frame, 0);
+                if (ret < 0) {
+                    CodecCtx::printErr(ret," hwframe transfer err");
+                } else {
+                    ret = OutCodecCtx::onFrame(codecCtx,hw_frame);
+                }
+            } else {
+                CodecCtx::printErr(ret," hwframe get buffer err");
+            }
+            av_frame_free(&hw_frame);
+        } else {
+            ret = OutCodecCtx::onFrame(codecCtx,sw_frame);
+        }
+        av_frame_free(&sw_frame);
         return ret;
     } else {
         return OutCodecCtx::onFrame(codecCtx,frame);
@@ -390,13 +404,6 @@ int VideoOutCodecCtx::initVideo(AVFrame *frame) {
         } else {
             ret = 0;
         }
-
-        _frame = av_frame_alloc();
-        _frame->format = pix_fmt;
-        _frame->width = ctx->width;
-        _frame->height = ctx->height;
-        ret = av_frame_get_buffer(_frame, 1);
-
     } else {
         ctx->width = frame->width;
         ctx->height = frame->height;

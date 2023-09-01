@@ -43,9 +43,7 @@ public:
 class VideoOutCodecCtx :public OutCodecCtx {
 private:
     struct SwsContext *sws = nullptr;
-    AVFrame *_frame = nullptr;
     AVBufferRef *hw_device_ctx = nullptr;
-    AVFrame  *hw_frame = nullptr;
 public:
     static VideoOutCodecCtx* findById(enum AVCodecID id);
     static VideoOutCodecCtx* findByName(const char* name);
