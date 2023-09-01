@@ -9,7 +9,7 @@
 #include "demo1.h"
 class CodecCtx {
 public:
-    static void printErr(int ret);
+    static void printErr(int ret,const char* msg = "");
     static AVCodecContext* findById(enum AVCodecID id,bool encoder);
     static AVCodecContext* findByName(const char* name,bool encoder);
     AVCodecContext *ctx;

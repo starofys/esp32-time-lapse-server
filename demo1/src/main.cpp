@@ -13,15 +13,19 @@ class FrameInit : public FrameSink ,public PacketSink,public JpgListener {
 private:
     FormatOutput *out;
     VideoOutCodecCtx *outCtx;
-    AVPacket pkg = {nullptr};
+    AVPacket *pkg;
     AVRational sourceRate;
 public:
     SubTitle* subTitle = nullptr;
     InCodecCtx *inCtx = nullptr;
     FrameInit(FormatOutput *_out,VideoOutCodecCtx *_codecCtx,AVRational _sourceRate):
         out(_out),outCtx(_codecCtx),sourceRate(_sourceRate) {
+        pkg = av_packet_alloc();
     };
     ~FrameInit() {
+        if (pkg) {
+            av_packet_free(&pkg);
+        }
     }
     void release() {
         int ret;
@@ -38,25 +42,24 @@ public:
     }
     void onImage(const char *buff, int len) override {
         int ret;
-        auto* data = (uint8_t*)av_malloc(len);
-        memcpy(data,buff,len);
-        ret = av_packet_from_data(&pkg,data,len);
+        ret = av_packet_from_data(pkg,(uint8_t*)buff,len);
         if (ret < 0) {
             cout << "pkg err" <<endl;
-            av_free(data);
             return;
         }
 
         //pkg.time_base = sourceRate;
-        pkg.pts = out->pts;
-        pkg.dts = out->pts;
+        pkg->pts = out->pts;
+        pkg->dts = out->pts;
         out->pts++;
 
-        ret = inCtx->onPackage(&pkg);
+        ret = inCtx->onPackage(pkg);
+        pkg->data = nullptr;
+        pkg->size = 0;
+
         if (ret < 0) {
             cout << "encode pkg err" <<endl;
         }
-        av_packet_unref(&pkg);
     }
     int onFrame(CodecCtx *codecCtx,AVFrame* frame) override {
         int ret = 0;
