@@ -288,7 +288,6 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             av_frame_free(&sw_frame);
             return ret;
         }
-        av_frame_copy_props(sw_frame,frame);
         if (ctx->hw_frames_ctx) {
             AVFrame * hw_frame = av_frame_alloc();
             ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, hw_frame, 0);
@@ -305,6 +304,7 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             }
             av_frame_free(&hw_frame);
         } else {
+            av_frame_copy_props(sw_frame,frame);
             ret = OutCodecCtx::onFrame(codecCtx,sw_frame);
         }
         av_frame_free(&sw_frame);
