@@ -279,7 +279,6 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             CodecCtx::printErr(ret," get buffer err");
             return ret;
         }
-        av_frame_copy_props(sw_frame,frame);
         // int ret = sws_scale_frame(sws, this->_frame,frame);
         ret = sws_scale(sws,
                         (const uint8_t * const*)frame->data,
@@ -289,6 +288,7 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
             av_frame_free(&sw_frame);
             return ret;
         }
+        av_frame_copy_props(sw_frame,frame);
         if (ctx->hw_frames_ctx) {
             AVFrame * hw_frame = av_frame_alloc();
             ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, hw_frame, 0);
@@ -297,6 +297,7 @@ int VideoOutCodecCtx::onFrame(CodecCtx *codecCtx,AVFrame *frame) {
                 if (ret < 0) {
                     CodecCtx::printErr(ret," hwframe transfer err");
                 } else {
+                    av_frame_copy_props(hw_frame,frame);
                     ret = OutCodecCtx::onFrame(codecCtx,hw_frame);
                 }
             } else {
