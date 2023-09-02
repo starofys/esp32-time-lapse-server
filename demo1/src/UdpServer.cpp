@@ -68,17 +68,17 @@ void UdpServer::release() {
 #endif
 }
 void UdpServer::loop() {
+    if (!l) {
+        return;
+    }
     int recv_len;
     socklen_t fLen = sizeof(remote);
 //    for(int i=0;i<2000;i++) {
      for(;;) {
         if ((recv_len = recvfrom(fd, buff, buffer_size, 0, (struct sockaddr*)&remote, &fLen)) < 0) {
-//            cout <<"recvfrom failed with error code : " << WSAGetLastError() << endl;
             break;
         }
-        if (l) {
-            l->onPackage(buff,recv_len);
-        }
+         l->onPackage(&remote,buff,recv_len);
     }
     cout << "udp break" << endl;
 }

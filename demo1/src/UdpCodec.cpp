@@ -6,14 +6,109 @@
 #include <iostream>
 #include "crc16.h"
 #include <cstring>
+#include <utility>
 
 using namespace std;
-void UdpCodec::onPackage(const char *buff, int len) {
+void UdpCodec::onPackage(struct sockaddr_storage *remote,const char *buff, int len) {
     if (len < 4) {
         return;
     }
+    std::string ip;
+    if (remote->ss_family == AF_INET) {
+        auto in = (sockaddr_in*)remote;
+        ip = inet_ntoa(in->sin_addr);
+        ip += ":";
+        ip += std::to_string(in->sin_port);
+    } else if (remote->ss_family == AF_INET6){
+        auto in = (sockaddr_in6*)remote;
+        ip = (const char*)in->sin6_addr.u.Byte;
+        ip += ":";
+        ip += std::to_string(in->sin6_port);
+    }
+    time_t now = time(nullptr);
+    auto itr  = listeners.find(ip);
+    JpgListener *listener;
+    if (itr == listeners.end()) {
+        if (listeners.size() < limit) {
+            cout << "new ip capture " << ip.c_str() << endl;
+            listener = factory();
+            if (listener) {
+                listeners[ip] = listener;
+            }
+        } else {
+            listener = nullptr;
+            clean(now);
+        }
+    } else {
+        listener = itr->second;
+    }
+    if (listener) {
+        listener->currentTim = now;
+        listener->onPackage(buff, len);
+    }
+    id++;
+    if (id % 1000 == 0) {
+        this->clean(now);
+    }
+}
 
-    // 4bit cmd 4bit flag 12bit idx 12bit crc16
+
+UdpCodec::~UdpCodec() {
+    this->release();
+}
+
+void UdpCodec::release() {
+    for (const auto &item: listeners)  {
+        delete item.second;
+    }
+    listeners.clear();
+}
+
+void UdpCodec::setJpgListener(function<JpgListener *()> f) {
+    factory = std::move(f);
+}
+
+UdpCodec::UdpCodec() {
+
+}
+
+void UdpCodec::clean(time_t now) {
+    auto itr = listeners.begin();
+    while (itr != listeners.end()) {
+        double second = difftime(now, itr->second->currentTim);
+        if (second > timeout) {
+            delete itr->second;
+            itr = listeners.erase(itr);
+        } else {
+            itr++;
+        }
+    }
+}
+
+
+int JpgListener::setBufferSize(int size) {
+    if (this->jpg_buff) {
+        free(this->jpg_buff);
+        this->buff_size = 0;
+    }
+    this->jpg_buff = (char*)malloc(size);
+    if (this->jpg_buff) {
+        this->buff_size = size;
+    } else {
+        return -1;
+    }
+    return this->buff_size;
+}
+
+JpgListener::~JpgListener() {
+    if (jpg_buff) {
+        free(jpg_buff);
+        jpg_buff = nullptr;
+    }
+}
+
+void JpgListener::onPackage(const char *buff, int len) {
+// 4bit cmd 4bit flag 12bit idx 12bit crc16
     int head = *(int*)buff;
     unsigned short crc16 = head & 0xfff;
     buff=&buff[4];
@@ -46,33 +141,10 @@ void UdpCodec::onPackage(const char *buff, int len) {
             }
         }
         // 结束包
-        if (flag == 1 && this->pos >0 && listener) {
-            listener->onImage(this->jpg_buff,this->pos);
+        if (flag == 1 && this->pos >0) {
+            onImage(this->jpg_buff,this->pos);
             pktId = 0;
             pos = 0;
         }
     }
-
-
 }
-UdpCodec::UdpCodec(int buff_size): buff_size(buff_size) {
-    this->jpg_buff = (char*)malloc(buff_size);
-}
-
-UdpCodec::~UdpCodec() {
-    this->release();
-    if (jpg_buff) {
-        free(jpg_buff);
-        jpg_buff = nullptr;
-    }
-}
-
-void UdpCodec::release() {
-
-}
-
-
-void UdpCodec::setJpgListener(JpgListener *_listener) {
-    listener = _listener;
-}
-

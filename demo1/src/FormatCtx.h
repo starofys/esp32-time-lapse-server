@@ -19,14 +19,11 @@ public:
     virtual int initBy(const char *filename);
     virtual int close();
     void dumpFmt();
-protected:
-    std::vector<CodecCtx*> codecs;
 };
 
 class FormatOutput : public FormatCtx, public PacketSink {
 private:
 public:
-    int64_t last_dts = -4000;
     FormatOutput();
     ~FormatOutput();
     int initBy(const char *filename) override;

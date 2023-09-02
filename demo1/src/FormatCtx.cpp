@@ -13,10 +13,6 @@ FormatCtx::~FormatCtx() {
         }
         avformat_free_context(fmt);
     }
-//    for (CodecCtx *item: codecs) {
-//        delete item;
-//    }
-    codecs.clear();
 }
 
 void logFormat(const AVCodec *vCodec) {
@@ -31,8 +27,7 @@ void logFormat(const AVCodec *vCodec) {
     }
 };
 
-FormatCtx::FormatCtx() : fmt(nullptr)
-                         {
+FormatCtx::FormatCtx() : fmt(nullptr) {
 }
 
 void FormatCtx::dumpFmt() {
@@ -69,8 +64,7 @@ int FormatOutput::onPackage(AVPacket *pkt) {
     if (!fmt->pb) {
         return 0;
     }
-    last_dts = pkt->dts;
-    cout << "out = " << pkt->pts  << " dts = " << pkt->dts << " outPkgLen = " << pkt->size << endl;
+    cout << "fOut = " << pkt->pts  << " dts = " << pkt->dts << " outPkgLen = " << pkt->size << endl;
     int ret = av_interleaved_write_frame(fmt,pkt);
     if (ret < 0) {
         CodecCtx::printErr(ret);

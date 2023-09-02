@@ -15,7 +15,7 @@ public:
     AVCodecContext *ctx;
     AVStream *stream;
     explicit CodecCtx(AVCodecContext *_ctx);
-    ~CodecCtx();
+    virtual ~CodecCtx();
     virtual int open() const;
 };
 
@@ -34,8 +34,8 @@ protected:
 public:
     static OutCodecCtx* findById(enum AVCodecID id);
     AVPacket *pkt;
-    OutCodecCtx(AVCodecContext *ctx);
-    ~OutCodecCtx();
+    explicit OutCodecCtx(AVCodecContext *ctx);
+    ~OutCodecCtx() override;
     void setPacketSink(PacketSink *sink);
     int onFrame(CodecCtx *codecCtx,AVFrame *frame) override;
 };
@@ -47,8 +47,8 @@ private:
 public:
     static VideoOutCodecCtx* findById(enum AVCodecID id);
     static VideoOutCodecCtx* findByName(const char* name);
-    VideoOutCodecCtx(AVCodecContext *_ctx);
-    ~VideoOutCodecCtx();
+    explicit VideoOutCodecCtx(AVCodecContext *_ctx);
+    ~VideoOutCodecCtx() override;
     int initDefault(int rate);
     int initVideo(AVFrame *frame);
     int onFrame(CodecCtx *codecCtx,AVFrame *frame) override;
@@ -60,8 +60,8 @@ protected:
 public:
     static InCodecCtx* findById(enum AVCodecID id);
     AVFrame *frame;
-    InCodecCtx(AVCodecContext *ctx);
-    ~InCodecCtx();
+    explicit InCodecCtx(AVCodecContext *ctx);
+    ~InCodecCtx() override;
     void setFrameSink(FrameSink *sink);
     int onPackage(AVPacket *pkg) override;
 };
@@ -74,7 +74,7 @@ public:
     AVSubtitle sub = {0};
     AVSubtitleRect rect = {0};
     explicit SubTitle(AVCodecContext *_ctx);
-    ~SubTitle();
+    ~SubTitle() override;
     int setSize(size_t size);
     int open() const override;
     int encodeTxt(AVFrame* frame,const char* subTile);

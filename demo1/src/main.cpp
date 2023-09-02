@@ -5,192 +5,70 @@
 #include "FormatCtx.h"
 #include "UdpServer.h"
 #include <csignal>
-#include "UdpCodec.h"
+#include "CaptureApp.h"
+#include "cmdline.h"
 
 using namespace std;
-char filename[256];
-class FrameInit : public FrameSink ,public PacketSink,public JpgListener {
-private:
-    FormatOutput *out;
-    VideoOutCodecCtx *outCtx;
-    AVRational sourceRate;
-public:
-    SubTitle* subTitle = nullptr;
-    InCodecCtx *inCtx = nullptr;
-    FrameInit(FormatOutput *_out,VideoOutCodecCtx *_codecCtx,AVRational _sourceRate):
-        out(_out),outCtx(_codecCtx),sourceRate(_sourceRate) {
-    };
-    ~FrameInit() {
-    }
-    void release() {
-        int ret;
-        if (out->fmt->pb) {
-            ret = outCtx->onFrame(inCtx,nullptr);
-            if (ret <0) {
-                CodecCtx::printErr(ret);
-            }
-        }
-        ret = out->close();
-        if (ret <0) {
-            CodecCtx::printErr(ret);
-        }
-    }
-    void onImage(const char *buff, int len) override {
-        int ret;
-        AVPacket *pkg = av_packet_alloc();
-        pkg->data = (uint8_t*)buff;
-        pkg->size = len;
-        //pkg.time_base = sourceRate;
-        pkg->pts = out->pts;
-        pkg->dts = out->pts;
-        out->pts++;
-
-        ret = inCtx->onPackage(pkg);
-
-        pkg->data = nullptr;
-        pkg->size = 0;
-
-        av_packet_free(&pkg);
-
-        if (ret < 0) {
-            cout << "encode pkg err" <<endl;
-        }
-    }
-    int onFrame(CodecCtx *codecCtx,AVFrame* frame) override {
-        int ret = 0;
-        if (!out->fmt->pb) {
-            ret = outCtx->initVideo(frame);
-            if (ret < 0) {
-                return ret;
-            }
-            ret = out->addStream(outCtx);
-            if (ret < 0) {
-                exit(ret);
-                return ret;
-            }
-            if (subTitle) {
-                ret = out->addStream(subTitle);
-                if (ret <0 ) {
-                    return ret;
-                }
-                subTitle->setPacketSink(out);
-            }
-            ret = out->open();
-            if (ret < 0) {
-                CodecCtx::printErr(ret);
-                exit(ret);
-                return ret;
-            }
-        }
-        int duration = sourceRate.den;
-        if (subTitle && frame->pts % duration == 0) {
-            time_t currentTim = time(nullptr);
-            strftime(filename, sizeof(filename), "%Y-%m-%d %H:%M:%S",localtime(&currentTim));
-            subTitle->encodeTxt(frame,filename);
-        }
-
-        ret = outCtx->onFrame(codecCtx,frame);
-
-        return ret;
-    }
-    int onPackage(AVPacket* _pkg) override {
-        return 0;
-    }
-};
 UdpServer server(1500);
-UdpCodec app(200000);
+UdpCodec udpCodec;
 void SignalHandler(int signal)
 {
-    printf("shutdown %d\n",signal);
+    cout << "shutdown " << signal << endl;
     if (signal == SIGINT || signal ==SIGTERM ) {
         server.release();
-        app.release();
     }
 }
-int capture(const char *encoder,const char* extFile, int rate) {
-    int ret = -1;
-    memset(filename,0,sizeof(filename));
-    time_t currentTim = time(nullptr);
-    strftime(filename, sizeof(filename), "%Y%m%d_%H_%M_%S",localtime(&currentTim));
-    sprintf(filename,"%s.%s",filename,extFile);
-    const char* outfile = filename;
-    cout << "encoder = " << encoder << " outfile = " << outfile << endl;
-    AVRational sourceRate =  av_make_q(1,rate);
-    InCodecCtx* inCtx = InCodecCtx::findById(AV_CODEC_ID_MJPEG);
-    inCtx->ctx->time_base = sourceRate;
-    ret = inCtx->open();
-    if (ret < 0) {
-        delete inCtx;
-        return ret;
+cmdline::parser p;
+JpgListener* create() {
+    auto capApp = new CaptureApp;
+    if (capApp->setBufferSize(200000)) {
+        auto encoder = p.get<string>("encoder");
+        auto format = p.get<string>("format");
+        auto rate = p.get<int>("rate");
+        auto webvtt = p.get<bool>("webvtt");
+        if (capApp->initParams(encoder, format, rate, webvtt) >= 0) {
+            return capApp;
+        }
     }
-
-    FormatOutput outFmt;
-    ret = outFmt.initBy(outfile);
-    if (ret < 0) {
-        delete inCtx;
-        return ret;
-    }
-    VideoOutCodecCtx *outCtx = VideoOutCodecCtx::findByName(encoder);
-    if (outCtx == nullptr) {
-        ret = -1;
-        return ret;
-    }
-    outCtx->initDefault(sourceRate.den);
-
-    auto frameInit = new FrameInit(&outFmt,outCtx,sourceRate);
-    inCtx->setFrameSink(frameInit);
-    frameInit->inCtx =  inCtx;
-    outCtx->setPacketSink(&outFmt);
-    enum AVCodecID subTitleCodec = AV_CODEC_ID_MOV_TEXT;
-    if (outFmt.fmt->oformat->video_codec == AV_CODEC_ID_FLV1) {
-        subTitleCodec = AV_CODEC_ID_TEXT;
-    }
-    SubTitle *subTitle = SubTitle::findById(subTitleCodec, true,512);
-    subTitle->ctx->time_base = outCtx->ctx->time_base;
-    subTitle->ctx->framerate  = outCtx->ctx->framerate;
-    frameInit->subTitle = subTitle;
-
-    app.setJpgListener(frameInit);
-    server.setListener(&app);
-
-    server.loop();
-    server.setListener(nullptr);
-    app.setJpgListener(nullptr);
-    frameInit->release();
-    if (frameInit->subTitle) {
-        delete frameInit->subTitle;
-    }
-    delete frameInit;
-    delete inCtx;
-    delete outCtx;
-    ret = 0;
-    return ret;
+    delete capApp;
+    return nullptr;
 }
+
 int main (int argc,char*argv[])
 {
+    p.set_program_name(argv[0]);
+    p.add<string>("encoder",'e',"encoder name",false,"libx264");
+    p.add<int>("port",'p',"listen port",false,8080,cmdline::range(1,65535));
+    p.add<string>("format",'f',"out format",true,"mp4");
+    p.add<bool>("webvtt",'w',"enable single webvtt subtitle file output",false, false);
+    p.add<int>("rate",'r',"video rate",false,25,cmdline::range(1,60));
+    p.add<int>("timeout",'t',"clean instance timeout minute",false,30,cmdline::range(1,60*24));
+    p.add<int>("limit",'l',"max capture size",false,2,cmdline::range(1,10));
+    p.parse_check(argc,argv);
+
+    auto val = create();
+    if (!val) {
+        return -1;
+    }
+    delete val;
+
     signal(SIGINT, SignalHandler);
     signal(SIGTERM, SignalHandler);
-    int rate = 25;
-    const char* encoder = "libx264";
-    const char* extFile = "mp4";
-    if (argc > 1) {
-        encoder = argv[1];
-    }
-    if (argc > 2) {
-        rate = std::atoi(argv[2]);
-    }
-    if (argc > 3) {
-        extFile = argv[3];
-    }
+
+    udpCodec.timeout = p.get<int>("timeout") * 60;
+    udpCodec.limit = p.get<int>("limit");
+    udpCodec.setJpgListener(create);
+    server.setListener(&udpCodec);
+
     int ret;
-    ret = server.open(8080);
+    ret = server.open(p.get<int>("port"));
     if (ret !=0) {
         return ret;
     }
-
-    ret = capture(encoder, extFile,rate);
-
-
+    server.loop();
+    server.setListener(nullptr);
+    udpCodec.release();
+    cout << "finished" << endl;
     return ret;
 
 }

@@ -17,7 +17,7 @@
 
 class UdpListener {
 public:
-    virtual void onPackage(const char* buff,int len) = 0;
+    virtual void onPackage(struct sockaddr_storage *remote,const char* buff,int len) = 0;
 };
 
 class UdpServer {
@@ -26,7 +26,7 @@ private:
     const int buffer_size;
     UdpListener* l = nullptr;
     struct sockaddr_in server = {0};
-    struct sockaddr_in remote = {0};
+    struct sockaddr_storage remote = {0};
 #ifdef __WINNT
     SOCKET fd;
 #else

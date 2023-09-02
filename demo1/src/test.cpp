@@ -1,6 +1,8 @@
 #include "demo1.h"
 #include <iostream>
 #include <fstream>
+#include "CodecCtx.h"
+#include "FormatCtx.h"
 using namespace std;
 AVPacket* readAll(const char* filename) {
     cout << filename <<endl;
@@ -36,4 +38,41 @@ int main2() {
         pkgList[i] = readAll(name.c_str());
     }
     return 0;
+}
+
+int main3() {
+    auto webVtt = SubTitle::findById(AV_CODEC_ID_WEBVTT, true,200);
+
+    webVtt->ctx->time_base = av_make_q(1,25);
+    webVtt->ctx->framerate  = av_make_q(25,1);
+
+    auto webVttOut = new FormatOutput;
+    int ret = webVttOut->initBy("test.vtt");
+    if (ret >=0) {
+        ret = webVttOut->addStream(webVtt);
+    }
+    if (ret>=0) {
+        webVtt->setPacketSink(webVttOut);
+    }
+    if (ret>=0) {
+        ret = webVttOut->open();
+    }
+    if (ret>=0) {
+        AVFrame frame;
+        string str;
+
+        for (int i = 0; i < 10; ++i) {
+            frame.pts = i *  webVtt->ctx->time_base.den;
+            frame.pkt_dts = frame.pts;
+            frame.duration = 0;
+            str = to_string(i);
+            webVtt->encodeTxt(&frame,str.c_str());
+        }
+
+        webVttOut->close();
+    }
+    delete webVttOut;
+    delete webVtt;
+
+    return ret;
 }

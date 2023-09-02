@@ -61,7 +61,7 @@ InCodecCtx* InCodecCtx::findById(enum AVCodecID id) {
 int InCodecCtx::onPackage(AVPacket *inPkt) {
     int ret = avcodec_send_packet(ctx,inPkt);
     if (ret < 0) {
-        CodecCtx::printErr(ret,"send pkt err");
+        CodecCtx::printErr(ret," send pkt err");
         return ret;
     }
     do {
