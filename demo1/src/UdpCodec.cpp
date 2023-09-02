@@ -7,6 +7,9 @@
 #include "crc16.h"
 #include <cstring>
 #include <utility>
+#ifndef __WINNT
+#include <arpa/inet.h>
+#endif
 
 using namespace std;
 void UdpCodec::onPackage(struct sockaddr_storage *remote,const char *buff, int len) {
@@ -14,14 +17,17 @@ void UdpCodec::onPackage(struct sockaddr_storage *remote,const char *buff, int l
         return;
     }
     std::string ip;
+
+    char str[INET6_ADDRSTRLEN];
+
     if (remote->ss_family == AF_INET) {
         auto in = (sockaddr_in*)remote;
-        ip = inet_ntoa(in->sin_addr);
+        ip = inet_ntop(remote->ss_family, &in->sin_addr, str,INET6_ADDRSTRLEN);
         ip += ":";
         ip += std::to_string(in->sin_port);
     } else if (remote->ss_family == AF_INET6){
         auto in = (sockaddr_in6*)remote;
-        ip = (const char*)in->sin6_addr.u.Byte;
+        ip = inet_ntop(remote->ss_family,  &in->sin6_addr, str,INET6_ADDRSTRLEN);
         ip += ":";
         ip += std::to_string(in->sin6_port);
     }
