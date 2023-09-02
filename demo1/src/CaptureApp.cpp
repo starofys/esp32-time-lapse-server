@@ -124,7 +124,6 @@ int CaptureApp::onFrame(CodecCtx *codecCtx, AVFrame *frame) {
 #else
         frame->pkt_duration = duration;
 #endif
-        frame->duration = duration;
         time_t currentTim = time(nullptr);
         strftime(filename, sizeof(filename), "%Y-%m-%d %H:%M:%S",localtime(&currentTim));
         subTitle->encodeTxt(frame,filename);
