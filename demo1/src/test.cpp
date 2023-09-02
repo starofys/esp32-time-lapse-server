@@ -64,7 +64,11 @@ int main3() {
         for (int i = 0; i < 10; ++i) {
             frame.pts = i *  webVtt->ctx->time_base.den;
             frame.pkt_dts = frame.pts;
-            frame.duration = 0;
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
+            frame.duration = webVtt->ctx->time_base.den;
+#else
+            frame.duration = webVtt->ctx->time_base.den;
+#endif
             str = to_string(i);
             webVtt->encodeTxt(&frame,str.c_str());
         }
