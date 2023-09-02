@@ -67,7 +67,7 @@ int main3() {
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
             frame.duration = webVtt->ctx->time_base.den;
 #else
-            frame.duration = webVtt->ctx->time_base.den;
+            frame.pkt_duration = webVtt->ctx->time_base.den;
 #endif
             str = to_string(i);
             webVtt->encodeTxt(&frame,str.c_str());
