@@ -119,6 +119,11 @@ int CaptureApp::onFrame(CodecCtx *codecCtx, AVFrame *frame) {
 
     int duration = inCtx->ctx->time_base.den * 5;
     if (subTitle && frame->pts % duration == 0) {
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
+        frame->duration = duration;
+#else
+        frame->pkt_duration = duration;
+#endif
         frame->duration = duration;
         time_t currentTim = time(nullptr);
         strftime(filename, sizeof(filename), "%Y-%m-%d %H:%M:%S",localtime(&currentTim));
