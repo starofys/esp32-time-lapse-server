@@ -64,7 +64,7 @@ int FormatOutput::onPackage(AVPacket *pkt) {
     if (!fmt->pb) {
         return 0;
     }
-    cout << "fOut = " << pkt->pts  << " dts = " << pkt->dts << " outPkgLen = " << pkt->size << endl;
+    cout << "out = " << pkt->pts  << " dts = " << pkt->dts << " len = " << pkt->size << endl;
     int ret = av_interleaved_write_frame(fmt,pkt);
     if (ret < 0) {
         CodecCtx::printErr(ret);

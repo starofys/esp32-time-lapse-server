@@ -53,6 +53,7 @@ int CaptureApp::initParams(std::string &encoder,std::string &extFile, int rate,b
             ret = webVttOut->addStream(webVtt);
         }
         if (ret>=0) {
+            webVttOut->fmt->flush_packets = 1;
             webVtt->setPacketSink(webVttOut);
         } else {
             delete webVttOut;
