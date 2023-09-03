@@ -48,6 +48,9 @@ int FormatCtx::open() const {
     if (fmt->oformat != nullptr) {
         ret = avformat_write_header(fmt, nullptr);
     }
+    if (ret < 0) {
+        CodecCtx::printErr(ret," fmt open fail");
+    }
     return ret;
 }
 

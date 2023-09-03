@@ -118,7 +118,7 @@ int CaptureApp::onFrame(CodecCtx *codecCtx, AVFrame *frame) {
 
     ret = outCtx->onFrame(codecCtx,frame);
 
-    int duration = inCtx->ctx->time_base.den * 5;
+    int duration = inCtx->ctx->time_base.den;
     if (subTitle && frame->pts % duration == 0) {
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
         frame->duration = duration;
@@ -129,6 +129,7 @@ int CaptureApp::onFrame(CodecCtx *codecCtx, AVFrame *frame) {
         strftime(filename, sizeof(filename), "%Y-%m-%d %H:%M:%S",localtime(&currentTim));
         subTitle->encodeTxt(frame,filename);
         if (webVttOut) {
+            cout << "enc webvtt" << filename << endl;
             webVtt->encodeTxt(frame,filename);
         }
     }
