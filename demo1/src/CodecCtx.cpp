@@ -202,9 +202,11 @@ int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
     rect.ass = nullptr;
     if (len ==0) {
+        cout << "subTitle len = " << len << endl;
         return len;
     }
     if (len < 0) {
+        cout << "2 subTitle len = " << len << endl;
         CodecCtx::printErr(len);
         return len;
     }
@@ -220,8 +222,15 @@ int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
     pkt->duration = frame->pkt_duration;
 #endif
     av_packet_rescale_ts( pkt, ctx->time_base,  stream->time_base);
+
+    cout << "3 subTitle pts = " << pkt->pts << endl;
+
     if (sink) {
-        sink->onPackage(pkt);
+        cout << "3 subTitle onPackage = " << pkt->pts << endl;
+        int ret = sink->onPackage(pkt);
+        cout << "5 subTitle onPackage rs =  " << ret << endl;
+    } else {
+        cout << "4 subTitle sink null = " << pkt->pts << endl;
     }
     av_packet_unref(pkt);
     return 0;
