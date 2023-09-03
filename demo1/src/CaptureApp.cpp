@@ -117,7 +117,7 @@ int CaptureApp::onFrame(CodecCtx *codecCtx, AVFrame *frame) {
     }
 
     ret = outCtx->onFrame(codecCtx,frame);
-
+    lastRet = ret;
     int duration = inCtx->ctx->time_base.den;
     if (subTitle && frame->pts % duration == 0) {
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(58, 2, 100)
@@ -176,4 +176,8 @@ int CaptureApp::release() {
         webVtt = nullptr;
     }
     return ret;
+}
+
+int CaptureApp::valid() {
+    return lastRet;
 }

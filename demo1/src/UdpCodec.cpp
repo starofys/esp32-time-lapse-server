@@ -51,10 +51,16 @@ void UdpCodec::onPackage(struct sockaddr_storage *remote,const char *buff, int l
     if (listener) {
         listener->currentTim = now;
         listener->onPackage(buff, len);
+        if (listener->valid() < 0 && itr != listeners.end()) {
+            cout << "listener not valid remove it " << listener->valid() << endl;
+            listeners.erase(itr);
+            delete listener;
+        }
     }
     id++;
     if (id % 1000 == 0) {
         this->clean(now);
+        id = 0;
     }
 }
 

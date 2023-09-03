@@ -17,12 +17,14 @@ private:
     SubTitle* webVtt = nullptr;
     FormatOutput *webVttOut;
     std::string subTitleName;
+    int lastRet = 0;
 public:
     CaptureApp(): webVttOut(nullptr){};
     int initParams(std::string &encoder,std::string& extFile, int rate,bool webvtt);
     ~CaptureApp() override;
     int release();
     int onImage(const char *buff, int len) override;
+    int valid() override;
     int onFrame(CodecCtx *codecCtx,AVFrame* frame) override;
     int onPackage(AVPacket* _pkg) override {
         return 0;

@@ -26,6 +26,7 @@ public:
     time_t currentTim  = 0;
     virtual ~JpgListener();
     virtual int onImage(const char *buff, int len) = 0;
+    virtual int valid() = 0;
     int setBufferSize(int buff_size);
     void onPackage(const char* buff,int len);
 };
