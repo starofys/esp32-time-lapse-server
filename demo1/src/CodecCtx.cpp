@@ -210,17 +210,19 @@ int SubTitle::setSize(size_t _size) {
 }
 
 int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
-//    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(60, 0, 100)
+    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
+#else
     sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,,%s",subTile);
+#endif
     rect.ass = text_buff;
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
     rect.ass = nullptr;
     if (len ==0) {
-        cout << "subTitle len = " << len << endl;
+        cout << "err subTitle len = " << len << endl;
         return len;
     }
     if (len < 0) {
-        cout << "2 subTitle len = " << len << endl;
         CodecCtx::printErr(len);
         return len;
     }
@@ -237,14 +239,8 @@ int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
 #endif
     av_packet_rescale_ts( pkt, ctx->time_base,  stream->time_base);
 
-    cout << "3 subTitle pts = " << pkt->pts << endl;
-
     if (sink) {
-        cout << "3 subTitle onPackage = " << pkt->pts << endl;
-        int ret = sink->onPackage(pkt);
-        cout << "5 subTitle onPackage rs =  " << ret << endl;
-    } else {
-        cout << "4 subTitle sink null = " << pkt->pts << endl;
+        sink->onPackage(pkt);
     }
     av_packet_unref(pkt);
     return 0;
