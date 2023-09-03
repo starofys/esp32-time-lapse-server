@@ -440,7 +440,7 @@ int VideoOutCodecCtx::initDefault(int rate) {
     ctx->time_base = av_make_q(1, rate);
     //设置GOP大小，即连续B帧最大数目
     ctx->gop_size= 30;
-    ctx->bit_rate = 800000;
+    ctx->bit_rate = 2048000;
     ctx->max_b_frames = 16;
 //    ctx->qcompress = 1.0;
     ctx->framerate = av_inv_q(ctx->time_base);
