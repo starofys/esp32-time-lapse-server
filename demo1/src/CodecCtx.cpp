@@ -210,7 +210,8 @@ int SubTitle::setSize(size_t _size) {
 }
 
 int SubTitle::encodeTxt(AVFrame* frame,const char* subTile) {
-    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
+//    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,%s",subTile);
+    sprintf(text_buff,"Dialogue: 0,0:00:00.00,0:00:00.00,Default,,0,0,0,,%s",subTile);
     rect.ass = text_buff;
     int len = avcodec_encode_subtitle(ctx, (uint8_t*)subtitle_out,(int)size,&sub);
     rect.ass = nullptr;
