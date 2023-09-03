@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void c_do_log();
+void version();
 
 #ifdef __cplusplus
 }
